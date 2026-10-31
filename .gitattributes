@@ -1,0 +1,36 @@
+# 行尾是踩过的坑：批处理里出现 \r\r\n 会让 cmd.exe 执行到乱码片段，
+# 而 .py/.sp 用 LF 才能被 spcomp 和 Python 稳定处理。这里显式钉死。
+* text=auto
+
+*.cmd  eol=crlf
+*.bat  eol=crlf
+*.ps1  eol=crlf
+*.ini  eol=crlf
+
+*.py   eol=lf
+*.sp   eol=lf
+*.cfg  eol=lf
+*.txt  eol=lf
+*.md   eol=lf
+*.js   eol=lf
+*.json eol=lf
+*.vdf  eol=lf
+# FSF 的许可证原文，逐字保留，别被行尾改写
+LICENSE eol=lf
+*.gitignore eol=lf
+.gitattributes eol=lf
+
+# 二进制产物不参与 diff
+*.smx  binary
+*.dll  binary
+*.zip  binary
+*.sq3  binary
+*.mdmp binary
+
+# 备份文件的作用是按字节还原，禁止任何行尾改写
+backup/**  -text
+*.orig     -text
+*.bak      -text
+*.upstream -text
+*.db       -text
+*.tuned    -text

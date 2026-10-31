@@ -1,0 +1,10 @@
+﻿
+# stage 2c 2026-10-30 17:43: botprofile.db replaced with dDefinder V1.5
+# from the CSGOBetterBots repack root (146428 bytes, matches the git-tree blob size). This is the file
+# that gives bots pro player NAMES, which is the only thing that switches bot_stuff.smx on
+# (IsBotInDatabase looks the name up in addons/sourcemod/data/bot_info.json).
+# Restore stage-1 tuning: copy botprofile.db.stage1 (local only, gitignored) over csgo/botprofile.db
+# Restore Valve original:  copy botprofile.db.orig  (local only, gitignored) over csgo/botprofile.db
+# The live file currently in the game folder is the dDefinder V1.5 repack from CSGOBetterBots;
+# that repo ships no LICENSE, so it is not redistributed here -- see tools/csgotool.py install.
+

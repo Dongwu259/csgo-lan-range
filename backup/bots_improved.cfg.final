@@ -1,0 +1,112 @@
+// Stage 1: offline bot improvement, cvars only, no plugins.
+// Every name below was whole-word matched against this install's csgo/bin/server.dll
+// (appid 4465480, buildid 22100934). Revert: E:\csgo\backup\README-restore.txt
+//
+// Usage: runs automatically from cfg/listenserver.cfg, or type "exec bots_improved.cfg"
+// after the map loads. Console errors "Unknown command" = cvar compiled out of this
+// build (they are FCVAR_DEVONLY); harmless, skip that line.
+
+sv_cheats 1
+
+// ---------- perception: see and hear everything, keep target through smokes ----------
+bot_max_vision_distance_override	-1
+bot_max_hearing_distance_override	-1
+bot_coop_idle_max_vision_distance	9999
+bot_max_visible_smoke_length		9999
+
+// ---------- reaction time and aim mechanics (devonly) ----------
+ai_reaction_delay_alert				0.02
+ai_reaction_delay_idle				0.05
+ai_spread_cone_focus_time			0.4
+ai_spread_defocused_cone_multiplier	1.5
+ai_spread_pattern_focus_time		0.6
+ai_lead_time						0.25
+
+// experimental: bias is already 1 by default, pinned so nothing lowers it.
+// if bots start aiming at the floor, set these three to 0 and re-test.
+ai_shot_bias						1.0
+ai_shot_bias_min					1.0
+ai_shot_bias_max					1.0
+
+// ---------- difficulty: stop the engine from nerfing bots back down ----------
+// sv_auto_adjust_bot_difficulty: "...adjust the difficulty of bots each round based on
+// contribution score."  sv_bots_get_easier_each_win: "some # of bots will lower their
+// difficulty each time they win" -- with ProP-tier bots that quietly deflates every round.
+bot_difficulty						3
+custom_bot_difficulty					3
+sv_auto_adjust_bot_difficulty			0
+sv_bots_get_easier_each_win				0
+
+// ---------- buying and economy ----------
+// server.dll help strings, verbatim:
+//   bot_eco_limit                 "If nonzero, bots will not buy if their money falls below this amount."
+//   sv_bots_force_rebuy_every_round "If set, this strips the bots of their weapons every round and forces them to rebuy."
+// With mp_maxmoney 16000 an eco_limit of 20000 was an impossible threshold, and force-rebuy
+// fights bot_stuff.smx, which already runs pro-style eco logic for bots. Both off.
+bot_eco_limit						0
+sv_bots_force_rebuy_every_round		0
+bot_randombuy						0
+bot_allow_grenades					1
+sv_bot_buy_grenade_chance			50
+sv_bot_buy_smoke_weight				30
+sv_bot_buy_flash_weight				30
+sv_bot_buy_hegrenade_weight			25
+sv_bot_buy_molotov_weight			25
+sv_bot_buy_decoy_weight				5
+
+// ---------- behaviour: coordinate, do not wait for me, do not block me ----------
+bot_defer_to_human_goals			0
+bot_defer_to_human_items			0
+bot_allow_rogues					0
+bot_join_after_player				0
+bot_auto_vacate						1
+bot_controllable						1
+bot_ignore_enemies					0
+bot_ignore_players					0
+mp_solid_teammates					0
+mp_autoteambalance					0
+mp_limitteams						0
+mp_autokick							0
+
+// ---------- match: Valve competitive round flow, full money every round ----------
+// "fill" keeps 10 TOTAL slots including the human, so 10 is correct here.
+// What actually locked you out was bot_auto_vacate 0 (bots refuse to yield a slot).
+bot_quota							10
+bot_quota_mode						fill
+// 1.92 min = 1:55, what gamemode_competitive.cfg uses for all three map types.
+// The hostage variant is set here too: without it a hostage round ran 1:55 while
+// a bomb round ran 5:00, which is what made the round clock disagree with the match.
+mp_roundtime						1.92
+mp_roundtime_defuse					1.92
+mp_roundtime_hostage					1.92
+mp_maxrounds						30
+mp_halftime							1
+// mp_timelimit 0 (Valve default) = the match ends on rounds, not on a wall clock.
+// Standard competitive economy. mp_startmoney 16000 was what refilled you every round:
+// server.dll describes it as "amount of money each player gets when they reset".
+// mp_afterroundmoney ("amount of money awared to every player after each round") is Valve 0;
+// pinned here so nothing else can raise it.
+mp_startmoney						800
+mp_maxmoney							16000
+mp_afterroundmoney						0
+mp_freezetime						15
+mp_buytime							20
+mp_buy_anywhere						1
+// MUST stay 0. When win conditions are ignored the round never ends, and a human
+// who joins mid-round only spawns at the next round -> stranded in spectator forever.
+mp_ignore_round_win_conditions		0
+mp_weapons_allow_zeus				1
+mp_death_drop_gun					1
+// 1 = bottomless magazine, 2 = bottomless reserve. 0 = normal reload economy.
+sv_infinite_ammo					0
+mp_warmup_end
+
+// ---------- optics: uncomment to see tracers and grenade arcs ----------
+// sv_showimpacts 2
+// sv_grenade_trajectory 1
+
+// ---------- manual commands, run these yourself when needed ----------
+// bot_stop 1 / bot_stop 0 ............ freeze and unfreeze all bots
+// bot_place .......................... put a bot where you stand
+// bot_goto_mark ...................... send bots to your mark (impulse 101 style)
+// ai_clear_bad_links ................. drop cached nav links when bots path badly

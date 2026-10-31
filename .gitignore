@@ -1,0 +1,42 @@
+# 第三方安装包与一次性探测脚本（都能重生成，且里面写的是作者机器的路径）
+downloads/
+staging/
+build/
+dist/
+exe/
+lan/
+
+# Python 与 PyInstaller 的临时物
+__pycache__/
+*.pyc
+*.spec
+
+# 运行时产物
+*.log
+*.sq3
+*.mdmp
+tools/room.ini
+
+# 本机游戏目录（gamedir --set 写它），换台机器就该换值，不入库
+settings.ini
+
+# 发布前扫描器用的"我自己的标识"清单；模板是 secrets.example.json
+.secrets.json
+
+# install 的还原点：里面是上游二进制和被替换下来的 Valve 文件，只对本机有意义
+backup/install/
+
+# 版权不在我们手里的备份，只留在本地用于还原，不入库：
+#   botprofile.db.*   Valve 的游戏文件（以及它的改写版）
+#   gameinfo.txt.orig Valve 的游戏文件
+#   video.txt.*       本机视频设置
+#   botmimic.smx.upstream / tools/src/botmimic.sp / gamedata/{botstuff,botmimic}.games.txt
+#                     来自 manicogaming/CSGOBetterBots，上游没有 LICENSE，
+#                     也就是没有再分发许可；装的时候由 install 命令从上游拉。
+backup/botprofile.db.*
+backup/gameinfo.txt.orig
+backup/video.txt.borderless.bak
+backup/botmimic.smx.upstream
+tools/src/botmimic.sp
+tools/src/gamedata/botstuff.games.txt
+tools/src/gamedata/botmimic.games.txt

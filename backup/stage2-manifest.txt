@@ -1,0 +1,26 @@
+﻿# stage 2 (CSGOBetterBots minimal set) installed 2026-10-30 12:59
+# upstream: https://github.com/manicogaming/CSGOBetterBots (branch master, NO license)
+# rollback: move each .smx below into addons/sourcemod/plugins/disabled/ and delete the data/gamedata files
+
+plugins/bot_stuff.smx                              49463  292778A1A0337D5FA2B748FB69AB2F51595E763D9E1AD3E7B8590474D5D53269
+plugins/botmimic.smx                               30504  3902C7406D77F814D9440A8CCE3226C7952A52D06D2103FAF1B4CA5654360918
+plugins/navmesh.smx                                44450  A8A987A4DF5D633D814436B079B9A7855B5C00AFB127A0C0333B29B92BE86C57
+plugins/eitems.smx                                 73615  1A7D80E2B8D1E3B682D54CBC63FFF0EC9F45046822FEAA87314C0E1F44B76C5E
+plugins/bot_steamids.smx                            9526  2F32186729AF4AF29C310035A7162CA21C929DA0F318F3C1460CA5A804261C4A
+gamedata/botstuff.games.txt                        10746  BCD1E82AE29D506E400F3CCF233EF7EFBCD0997EF8D60B6C8B3B87A92B5765B1
+gamedata/botmimic.games.txt                          655  F3D7080B12F546B338D4DB6559DA9DA0DEA326A143EAED0C8B1642EC22CADFA3
+configs/eItems.json                                  112  76D163D015A5D3E48804B3DFB5D150353B2E7AAE81D513DE1102E45B628DB9F4
+data/bot_info.json                                162906  D123488B412806556E241D6546E33F903DADD299AE60EE2C261144F1F36BF212
+data/items_en.json                               1878336  3E50D8BEFBBC6E8E6726C0C08142F5E7FC8A341ADEC193BE1820BD55EFCED1CE
+data/items_zh_hans.json                          1248758  97C32F5954EC333243DF53BFC837CDE4C8D7C8B01FB3C951B74DF6F9D50DD616
+
+# stage 2b: extensions required by eItems / BOT SteamIDs, installed 2026-10-30 17:17
+#   rip.ext.dll            from https://github.com/ErikMinekus/sm-ripext release 1.3.2 (windows zip sha256 B66322AE...1D6E)
+#   SteamIDConverter.ext.dll from manicogaming/CSGOBetterBots repack; no release found, PE imports KERNEL32 only
+
+extensions/rip.ext.dll                           1406976  5A95942DA928858C2DC6F8FFB7204740D75412F671F6F9C204FD6554915C536C
+extensions/SteamIDConverter.ext.dll               852992  D7B6290929CC1D80B3060C40AA2CE7559D13AAB3265D769E8BCCFC192B6BD9B7
+configs/ripext/ca-bundle.crt                      222971  7D78356D84D8CD43343C4644F6ABAD7660AB2875AF68383C381749299523C58F
+scripting/include/ripext.inc                         414  760CD500AE97C7630C0039145F2E314EA37956C8E5165EDB518F42BFC135D975
+scripting/include/ripext/http.inc                  13232  1DF9683FE00FE8CBD18C7D46EF221110040D6C0A9B32D424C4A104AB4494E53E
+scripting/include/ripext/json.inc                  14349  6E516470B9D338C8FC5158BF7B9DA70DAA4C0DBB1FE3ED45808481898D1FF7F4

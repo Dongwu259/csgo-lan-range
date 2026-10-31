@@ -1,0 +1,292 @@
+{
+ "schema": 1,
+ "pinned_at": "2026-10-31",
+ "game_subpath": "csgo",
+ "note": "字节数是上游资源的实际大小，sha256 是这台机器装的那一份。install 会先比这两个值再落地；不一致就停下来问，不静默覆盖。",
+ "exclude": [
+  "README.md",
+  "LICENSE",
+  "LICENSE.txt",
+  "README"
+ ],
+ "_exclude_note": "压缩包根目录里的说明文件不往游戏根目录倒",
+ "preserve": [
+  "addons/sourcemod/configs/core.cfg",
+  "addons/sourcemod/configs/databases.cfg",
+  "addons/sourcemod/configs/admins_simple.ini",
+  "cfg/sourcemod/"
+ ],
+ "cvar_fixes": [
+  {
+   "file": "addons/sourcemod/configs/core.cfg",
+   "key": "FollowCSGOServerGuidelines",
+   "value": "no",
+   "why": "出厂是 yes，皮肤/手套插件会因此拒绝非官方设置"
+  }
+ ],
+ "hooks": [
+  {
+   "file": "cfg/listenserver.cfg",
+   "append": [
+    "// added by csgotool install (delete to revert)",
+    "exec bots_improved.cfg"
+   ],
+   "marker": "exec bots_improved.cfg",
+   "because": "listen 服启动时唯一的挂点；出厂这个文件是空的"
+  },
+  {
+   "file": "cfg/gamemode_competitive_offline.cfg",
+   "append": [
+    "// added by csgotool install: must run last, otherwise the",
+    "// two lines above re-add a 10th bot and the human is left in",
+    "// spectator. delete to revert.",
+    "exec bots_improved.cfg"
+   ],
+   "marker": "exec bots_improved.cfg",
+   "because": "离线竞技的 bot_quota 10 会把真人挤成观察者"
+  }
+ ],
+ "postinstall": [
+  "Steam 属性 -> 启动选项里写 -insecure（没有它引擎不加载 addons 里的 DLL）",
+  "metamod 只在换图时加载：装完要 changelevel 或开新的一局",
+  "FollowCSGOServerGuidelines 必须是 no，否则 weapons/gloves 不生效",
+  "验证：csgotool.py mods（8 个 mod DLL）然后 csgotool.py doctor（管道应答）"
+ ],
+ "components": [
+  {
+   "id": "mmsource",
+   "title": "Metamod: Source",
+   "version": "1.12.0-git1228",
+   "kind": "release",
+   "repo": "alliedmodders/metamod-source",
+   "license": "GPL-3.0-or-later",
+   "url": "https://github.com/alliedmodders/metamod-source/releases/download/1.12.0.1228/mmsource-1.12.0-git1228-windows.zip",
+   "cache": "mmsource.zip",
+   "bytes": 5366899,
+   "sha256": "39fadfe17f231064b663e9db8cdac7a2457f7a318ccfbad8d7a70986d081be49",
+   "unpack": "game",
+   "marks": [
+    "addons/metamod.vdf",
+    "addons/metamod/bin/metamod.2.csgo.dll"
+   ]
+  },
+  {
+   "id": "sourcemod",
+   "title": "SourceMod",
+   "version": "1.12.0-git7259",
+   "kind": "release",
+   "repo": "alliedmodders/sourcemod",
+   "license": "GPL-3.0-or-later (AlliedModders linking exception)",
+   "url": "https://github.com/alliedmodders/sourcemod/releases/download/1.12.0.7259/sourcemod-1.12.0-git7259-windows.zip",
+   "cache": "sourcemod.zip",
+   "bytes": 64185186,
+   "sha256": "5711ce719fa2f3fa4a762702f55c7906aa951690c739499beb5f2b62a9161362",
+   "unpack": "game",
+   "marks": [
+    "addons/sourcemod/LICENSE.txt",
+    "addons/sourcemod/bin/sourcemod.2.csgo.dll",
+    "addons/sourcemod/extensions/dhooks.ext.dll",
+    "addons/sourcemod/plugins/basecommands.smx"
+   ]
+  },
+  {
+   "id": "ptah",
+   "title": "PTaH",
+   "version": "1.1.4",
+   "kind": "release",
+   "repo": "komashchenko/PTaH",
+   "license": "GPL-3.0-or-later",
+   "url": "https://github.com/komashchenko/PTaH/releases/download/v1.1.4/windows.zip",
+   "cache": "PTaH.zip",
+   "bytes": 520084,
+   "sha256": "70861c00518aee8b4dbc7a3bf6e1a9b6bb351ca44165a5b1e6868897608c0820",
+   "unpack": "game",
+   "marks": [
+    "addons/sourcemod/extensions/PTaH.ext.2.csgo.dll",
+    "addons/sourcemod/gamedata/PTaH.games.txt"
+   ]
+  },
+  {
+   "id": "weapons",
+   "title": "kgns weapons",
+   "version": "1.7.8",
+   "kind": "release",
+   "repo": "kgns/weapons",
+   "license": "GPL-3.0-or-later",
+   "url": "https://github.com/kgns/weapons/releases/download/v1.7.8/weapons-v1.7.8.zip",
+   "cache": "weapons.zip",
+   "bytes": 537251,
+   "sha256": "8e84ac0e98b5babd248035d6a1f4e7414670314b15a54e02b547e0e0f214fc9d",
+   "unpack": "game",
+   "marks": [
+    "addons/sourcemod/plugins/weapons.smx",
+    "addons/sourcemod/scripting/include/ptah.inc"
+   ]
+  },
+  {
+   "id": "gloves",
+   "title": "kgns gloves",
+   "version": "1.0.5",
+   "kind": "release",
+   "repo": "kgns/gloves",
+   "license": "GPL-3.0-or-later",
+   "url": "https://github.com/kgns/gloves/releases/download/v1.0.5/gloves-v1.0.5.zip",
+   "cache": "gloves.zip",
+   "bytes": 108376,
+   "sha256": "673601f097ce793cfd8f6a33cd01fa36ff5075c5290ff7c6e3a168f57937481d",
+   "unpack": "game",
+   "marks": [
+    "addons/sourcemod/plugins/gloves.smx"
+   ]
+  },
+  {
+   "id": "ripext",
+   "title": "sm-ripext",
+   "version": "1.3.2",
+   "kind": "release",
+   "repo": "ErikMinekus/sm-ripext",
+   "license": "GPL-3.0-or-later",
+   "url": "https://github.com/ErikMinekus/sm-ripext/releases/download/1.3.2/sm-ripext-1.3.2-windows.zip",
+   "cache": "sm-ripext-1.3.2-windows.zip",
+   "bytes": 1544375,
+   "sha256": "b66322ae464afc0692097877ad9f5c27ae2c3a41e829cfabe06b93197e1f1d6e",
+   "unpack": "game",
+   "marks": [
+    "addons/sourcemod/extensions/rip.ext.dll",
+    "addons/sourcemod/scripting/include/ripext.inc"
+   ]
+  },
+  {
+   "id": "botpack",
+   "title": "CSGOBetterBots bot stack",
+   "version": "a07119bb7f",
+   "kind": "loose",
+   "repo": "manicogaming/CSGOBetterBots",
+   "commit": "a07119bb7fc5f31e53ede5f2515da23db5b51de0",
+   "license": "上游没有 LICENSE 文件 —— 没有再分发许可，只能由你自己抓取",
+   "consent": true,
+   "base": "https://raw.githubusercontent.com/manicogaming/CSGOBetterBots/a07119bb7fc5f31e53ede5f2515da23db5b51de0/",
+   "files": [
+    {
+     "path": "addons/sourcemod/plugins/bot_steamids.smx",
+     "bytes": 9526,
+     "sha256": "2f32186729af4af29c310035a7162ca21c929da0f318f3c1460ca5a804261c4a"
+    },
+    {
+     "path": "addons/sourcemod/plugins/bot_stuff.smx",
+     "bytes": 49463,
+     "sha256": "292778a1a0337d5fa2b748fb69ab2f51595e763d9e1ad3e7b8590474d5d53269"
+    },
+    {
+     "path": "addons/sourcemod/plugins/eitems.smx",
+     "bytes": 73615,
+     "sha256": "1a7d80e2b8d1e3b682d54cbc63fff0ec9f45046822feaa87314c0e1f44b76c5e"
+    },
+    {
+     "path": "addons/sourcemod/plugins/navmesh.smx",
+     "bytes": 44450,
+     "sha256": "a8a987a4df5d633d814436b079b9a7855b5c00afb127a0c0333b29b92be86c57"
+    },
+    {
+     "path": "addons/sourcemod/extensions/SteamIDConverter.ext.dll",
+     "bytes": 852992,
+     "sha256": "d7b6290929cc1d80b3060c40aa2ce7559d13aab3265d769e8bccfc192b6bd9b7"
+    },
+    {
+     "path": "addons/sourcemod/configs/bot_nades.txt",
+     "bytes": 109970,
+     "sha256": "ac1c9ca4207ca81ac5812e14654848be862b962c84be2f86f0d347584516bcab"
+    },
+    {
+     "path": "addons/sourcemod/configs/eItems.json",
+     "bytes": 112,
+     "sha256": "76d163d015a5d3e48804b3dfb5d150353b2e7aae81d513de1102e45b628db9f4"
+    },
+    {
+     "path": "addons/sourcemod/gamedata/botstuff.games.txt",
+     "bytes": 10746,
+     "sha256": "bcd1e82ae29d506e400f3ccf233ef7efbcd0997ef8d60b6c8b3b87a92b5765b1"
+    },
+    {
+     "path": "addons/sourcemod/gamedata/botmimic.games.txt",
+     "bytes": 655,
+     "sha256": "f3d7080b12f546b338d4db6559da9da0dea326a143eaed0c8b1642ec22cadfa3"
+    },
+    {
+     "path": "addons/sourcemod/data/bot_info.json",
+     "bytes": 162906,
+     "sha256": "d123488b412806556e241d6546e33f903dadd299ae60ee2c261144f1f36bf212"
+    },
+    {
+     "path": "addons/sourcemod/data/items_en.json",
+     "bytes": 1878336,
+     "sha256": "3e50d8befbbc6e8e6726c0c08142f5e7fc8a341adec193be1820bd55efced1ce"
+    },
+    {
+     "path": "addons/sourcemod/data/items_zh_hans.json",
+     "bytes": 1248758,
+     "sha256": "97c32f5954ec333243df53bfc837cde4c8d7c8b01fb3c951b74df6f9d50dd616"
+    }
+   ],
+   "skip": [
+    {
+     "path": "botchatter.db",
+     "because": "本机这份（17079 字节）是改过的，上游是 24792 字节，覆盖会丢掉本机改动"
+    },
+    {
+     "path": "botprofile.db",
+     "because": "Valve 的游戏文件，且这份是 dDefinder 改写版，不入库也不自动装"
+    },
+    {
+     "path": "addons/sourcemod/plugins/botmimic.smx",
+     "because": "本机这份是本地重编译的补丁版，与上游不同；上游原样装会退回旧行为"
+    }
+   ]
+  },
+  {
+   "id": "toolkit",
+   "title": "本仓库自己的插件与配置",
+   "version": "1.3.0",
+   "kind": "local",
+   "license": "见 LICENSE",
+   "files": [
+    {
+     "from": "release/plugins/lan_fix.smx",
+     "to": "addons/sourcemod/plugins/lan_fix.smx",
+     "bytes": 20402,
+     "sha256": "b2e7dafee8862015decfd38836bd3a2d3070866fec0b647d4cb9cdd8ffecccbe"
+    },
+    {
+     "from": "release/plugins/lan_pipe.smx",
+     "to": "addons/sourcemod/plugins/lan_pipe.smx",
+     "bytes": 6724,
+     "sha256": "3ef8506838b32a20950df34e93fdcbf637ec77c8da876cd427b8d7910848e25e"
+    },
+    {
+     "from": "tools/src/lan_fix.sp",
+     "to": "addons/sourcemod/scripting/lan_fix.sp",
+     "bytes": 40416,
+     "sha256": "8f8bca198f6dcde40703cb3804496e895441f9a3c1741f458159b6d93ee376c3"
+    },
+    {
+     "from": "tools/src/lan_pipe.sp",
+     "to": "addons/sourcemod/scripting/lan_pipe.sp",
+     "bytes": 8096,
+     "sha256": "6f424d93fcd0e9587df9c47722d20c9b6e06be63f632a89deacbace28607585a"
+    },
+    {
+     "from": "configs/lan.cfg",
+     "to": "cfg/lan.cfg",
+     "bytes": 4143,
+     "sha256": "db2b742dce001ad47d5235fdcecc368ff0212aeebb33dfe3a1cb34ccdb27c058"
+    },
+    {
+     "from": "configs/bots_improved.cfg",
+     "to": "cfg/bots_improved.cfg",
+     "bytes": 4883,
+     "sha256": "e5239498098ce77d58d668b96550277a9b20ee5e3707de5d4e728e598b023a14"
+    }
+   ]
+  }
+ ]
+}
