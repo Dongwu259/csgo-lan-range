@@ -25,6 +25,8 @@ settings.ini
 
 # install 的还原点：里面是上游二进制和被替换下来的 Valve 文件，只对本机有意义
 backup/install/
+# bots patch 的还原点，同上（改的是本机 botprofile.db）
+backup/bots/
 
 # 版权不在我们手里的备份，只留在本地用于还原，不入库：
 #   botprofile.db.*   Valve 的游戏文件（以及它的改写版）

@@ -14,6 +14,7 @@
   "addons/sourcemod/configs/core.cfg",
   "addons/sourcemod/configs/databases.cfg",
   "addons/sourcemod/configs/admins_simple.ini",
+  "addons/sourcemod/plugins/botmimic.smx",
   "cfg/sourcemod/"
  ],
  "cvar_fixes": [
@@ -46,11 +47,14 @@
    "because": "离线竞技的 bot_quota 10 会把真人挤成观察者"
   }
  ],
- "postinstall": [
-  "Steam 属性 -> 启动选项里写 -insecure（没有它引擎不加载 addons 里的 DLL）",
-  "metamod 只在换图时加载：装完要 changelevel 或开新的一局",
-  "FollowCSGOServerGuidelines 必须是 no，否则 weapons/gloves 不生效",
-  "验证：csgotool.py mods（8 个 mod DLL）然后 csgotool.py doctor（管道应答）"
+ "first_run": [
+  "Steam 库里右键 csgo legacy → 属性 → 启动选项，写 -insecure。这一步脚本代不了：没有它引擎不加载 addons 里任何未签名 DLL",
+  "开游戏，主菜单点 开始游戏 → 与电脑玩家，选一张 de_ 图。脚本确实能免掉这一跳（csgotool.py start --launch），但那样起来的局是引擎默认玩法而不是竞技局——game_type/game_mode 只是信息位的，已创建的局改不掉；要竞技局就得点这一下。csgotool.py mode 会告诉你现在到底是哪种玩法",
+  "进图后换一次图（控制台 changelevel de_mirage，或退出重开一局）。Metamod 只在换图时装载，不换图 sm 命令全是 Unknown command",
+  "回命令行跑：python tools\\csgotool.py mods —— 8 个 mod DLL 都该列出来",
+  "再跑：python tools\\csgotool.py doctor —— 管道应答应有，插件版本应列出",
+  "想让每局 bot 都是同一档强度：python tools\\csgotool.py bots patch --names（改的是你本机的 botprofile.db，带备份与还原）",
+  "皮肤在游戏里用 !ws / !gloves / !knife 选（控制台直接敲 sm_ws 会以 client=0 运行，菜单不出现）"
  ],
  "components": [
   {
@@ -188,6 +192,12 @@
      "sha256": "a8a987a4df5d633d814436b079b9a7855b5c00afb127a0c0333b29b92be86c57"
     },
     {
+     "path": "addons/sourcemod/plugins/botmimic.smx",
+     "bytes": 30504,
+     "sha256": "3902c7406d77f814d9440a8cce3226c7952a52d06d2103faf1b4ca5654360918",
+     "note": "上游原样二进制。它的 gamedata 本来就在清单里，插件不装就是半装状态"
+    },
+    {
      "path": "addons/sourcemod/extensions/SteamIDConverter.ext.dll",
      "bytes": 852992,
      "sha256": "d7b6290929cc1d80b3060c40aa2ce7559d13aab3265d769e8bccfc192b6bd9b7"
@@ -218,6 +228,12 @@
      "sha256": "d123488b412806556e241d6546e33f903dadd299ae60ee2c261144f1f36bf212"
     },
     {
+     "path": "botprofile.db",
+     "bytes": 146428,
+     "sha256": "3c4135560a978ef73daef777c317911c74aa464fa8243c0fca59fda2080e27da",
+     "note": "装到游戏根目录，替换 Valve 那份。bot_stuff.smx 是靠 bot 名字在 bot_info.json 里查表才接管的，Valve 的默认名字（Ron/Yahn/...）一个都不在表里，所以没有这个文件整套 bot 栈就是空转。装前自动备份"
+    },
+    {
      "path": "addons/sourcemod/data/items_en.json",
      "bytes": 1878336,
      "sha256": "3e50d8befbbc6e8e6726c0c08142f5e7fc8a341adec193be1820bd55efced1ce"
@@ -231,15 +247,7 @@
    "skip": [
     {
      "path": "botchatter.db",
-     "because": "本机这份（17079 字节）是改过的，上游是 24792 字节，覆盖会丢掉本机改动"
-    },
-    {
-     "path": "botprofile.db",
-     "because": "Valve 的游戏文件，且这份是 dDefinder 改写版，不入库也不自动装"
-    },
-    {
-     "path": "addons/sourcemod/plugins/botmimic.smx",
-     "because": "本机这份是本地重编译的补丁版，与上游不同；上游原样装会退回旧行为"
+     "because": "电台语音按类别索引而不是按名字，不装也照样响；上游这份 24792 字节会盖掉游戏目录里已有的那份，所以不自动装"
     }
    ]
   },

@@ -46,16 +46,20 @@ python tools\csgotool.py install              # 真装，落地前会再问一�
 
 - 你在插件配置里做的改动（`core.cfg`、`cfg\sourcemod\` 下那些）在清单的 `preserve` 名单里：**只跳过，不覆盖**，`--check` 会单独列出来告诉你"这个你改过"。
 - bot 强化那批（`botpack`）的上游仓库没有 LICENSE，所以要么 `--accept-upstream-license` 要么交互确认，抓取动作由你的机器对上游做；不想碰它就 `install --skip botpack`。理由与细节见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+- `botpack` 会把你游戏根目录的 `botprofile.db` 换成上游那份，**这一步是整套 bot 栈的开关**：`bot_stuff.smx` 是按 bot 名字去 `data/bot_info.json` 查表才决定接不接管，而 Valve 默认名字（`Ron`、`Yahn`…）一个都不在表里——不换文件的话插件加载得干干净净，然后什么都不做。原文件先复制进还原点，`uninstall` 会拿它盖回来。
 - 游戏进程在跑就拒绝执行——文件被占着会留下半个插件栈；确认自担风险才用 `--force`。
-- 装完要换一次图才加载（metamod 的挂载点在建图时）。
+- 装完要换一次图才加载（metamod 的挂载点在建图时）。装完最后会打印一份带序号的首跑清单，从"Steam 启动选项写 `-insecure`"一路列到"跑 `bots patch`"，照着做完就能玩。
 - 退回去：`python tools\csgotool.py uninstall --revert <时间戳>`（不写时间戳就是最近一次），它按那次的 `report.json` 删掉新增的、恢复被换掉的，包括那两行 `exec` 和 `core.cfg` 的那一格。
 - 只想知道现场对不对、什么都不改：`install --check`（全部一致时退出码 0，可以直接当 CI 用）。
-- 打包版也能装：清单和两个自写 `.smx` 用 `--add-data` 进了 exe（§9 的命令里带着），运行时从 `sys._MEIPASS` 里读；区别只有一个——还原点落在 **exe 旁边的** `backup\install\<时间戳>\`，因为写操作一律锚在 `sys.executable` 所在目录。
+- 想知道**这套栈自不自洽**（游戏不用在跑，也不用下载缓存）：`install --audit`。它查的是另一类问题——清单声明的 `.smx` 有没有缺、`bot_stuff → bot_steamids → SteamIDConverter` 这类依赖链断没断、`FollowCSGOServerGuidelines` 现在是什么、cfg 挂钩在不在、`botprofile.db` 的档位分布与名字命中率、哪些本地图没有道具路线、DLL 还带不带 Web 标记。坏了退出码 1，只是"可以更好"就打印建议、退出码 0。
+- 打包版也能装：清单和两个自写 `.smx` 用 `--add-data` 进了 exe（§9 一条命令重打包），运行时从 `sys._MEIPASS` 里读；区别只有一个——还原点落在 **exe 旁边的** `backup\install\<时间戳>\`，因为写操作一律锚在 `sys.executable` 所在目录。
 
 | 我想干什么 | 命令 |
 |---|---|
 | 看服务器活着没、插件版本、有没有报错 | `csgotool.py doctor` |
 | 看 mod 到底进没进进程（是不是漏了 `-insecure`） | `csgotool.py mods` |
+| 不开游戏就知道这套栈缺了什么 | `csgotool.py install --audit` |
+| 把每局 bot 的强度抽卡拉平（改本机 db，带备份还原） | `csgotool.py bots patch --names` |
 | 看当前对局（地图 / 人数 / 比分 / 剩余时间） | `csgotool.py status` |
 | 看每个玩家和 bot 的名字、队伍、生死 | `csgotool.py who` |
 | 联机时一直盯着比分和进出的人 | `csgotool.py watch --players` |
@@ -88,7 +92,7 @@ python tools\csgotool.py shell
   7   联机与加入          地址、.cmd、密码、房名
   8   专家模式            任意参数与命令、cfg 生成与校验
   9   体检 doctor         管道/插件版本/错误日志
-  10  装机与自检          install / 核对 / 撤销 / 游戏目录
+  10  装机与自检          install / 核对 / 静态自检 / bots patch / 撤销
 ```
 
 顶部那行就是你现在最关心的东西，每屏都重画一次；任何一屏返回时都会清屏，历史不会堆成滚不动的墙。
@@ -294,7 +298,34 @@ python tools\csgotool.py bots --no-live
 - **接管列**：名字在 `data/bot_info.json`（1409 个职业 ID）里的，插件每回合写死 `反应 0.165–0.325 / 进攻 0–1 / 甩狙加速 4000–7000` 的随机值；五个 `sh1ro / ZywOo / ropz / donk / m0NESY`（**大小写敏感**）则是 `100000 / 0.0 / 1.0`。名字不在表里的，插件不管，库里多少就是多少。
 - **实测反应 0.000** 只可能出现在那五个人名上，那不是"职业水平"，是人类不可能。
 - **`--detail`** 会逐字段给出 `库里值 / 引擎实测 / 结构体偏移 / 判定`。偏移表是实测出来的：一个不在 bot_info 里的 bot 作为对照组，17 个字段全部与配置一致。
-- 已知现象：bot 名字每局随机抽，所以**强度是抽卡**——实测连续两局都是 7 个 ProP + 2 个低档（0.40 / 0.45 秒反应），那两个恰好都不在 bot_info 里，等于每局有两个人慢一倍。要治就得收窄 `botprofile.db` 的名字池（只留 ProP/Elite 的 block），调 `bot_difficulty` 没用（这份文件里所有档位都声明支持全部难度，那个 cvar 基本失效）。
+- 已知现象：bot 名字每局随机抽，所以**强度是抽卡**——实测连续两局都是 7 个 ProP + 2 个低档（0.40 / 0.45 秒反应），那两个恰好都不在 bot_info 里，等于每局有两个人慢一倍。调 `bot_difficulty` 没用（这份文件里所有档位都声明支持全部难度，那个 cvar 基本失效）；治它的是下面这一节的 `bots patch`。
+
+### 把强度拉平：`bots patch`
+
+抽卡的根子有两条，都在**你本机那份 `botprofile.db`** 里，所以这个命令改写它，而不是发一份新的给你（Valve 的原文件和 repack 的改写版都不入库）：
+
+| 症状 | 根因 | patch 做的事 |
+|---|---|---|
+| 每局混进 0.40/0.45 秒反应的 bot | 池子里 781/2187 个 block 挂在弱档模板上 | 把每个 block 链首的档位 token 改成库里最强的一档（默认 `ProP`） |
+| 有些 bot 完全不被插件接管 | 名字不在 `bot_info.json` 那 1409 个职业 ID 里 | `--names` 把不命中的名字换成表里还没被占用的职业名 |
+
+```
+python tools\csgotool.py bots patch --dry-run     # 只看计划：改多少行、档位分布怎么变
+python tools\csgotool.py bots patch --names       # 真写，写之前自动备份
+python tools\csgotool.py bots patch --backups     # 有哪些还原点
+python tools\csgotool.py bots patch --revert      # 还原最近一次（可给时间戳）
+python tools\csgotool.py bots patch --only ProP   # 另一种口味：弱档 block 直接删掉，池子变短
+```
+
+- 只动 profile 的头行：换链首的档位 token、或者换名字，`Default` / `Template` 块与所有数值行都不碰。实测两份 db（Valve 那份 147 个 block、repack 那份 2187 个）里**没有任何 profile 自己覆盖 `Skill` 或 `ReactionTime`**，所以改头行就够。
+- 行尾（CRLF/LF）、缩进、行尾注释按原样保留；计划算完和写盘之间文件被改动过会拒绝落盘。
+- 幂等：拉平之后再跑，报"没有要改的"。
+- 换名用**表里的原样大小写**（`bot_stuff` 有些比较是 `strcmp`），并且不会把 `sh1ro / ZywOo / ropz / donk / m0NESY` 这五个发出去——那五个会拿到 `100000 / 0.0 / 1.0`，0 秒反应不是人类水平，拉平强度不该顺带造出这种 bot。
+- `--only` 若会把名字池清空（指定档位里一个 block 都没有）直接拒绝，并告诉你现有什么档位。
+- 还原会比对 `report.json` 里记录的产物哈希：你自己又动过这份 db 就拒绝还原，确认要覆盖才加 `--force`。
+- `--names` 依赖 `data/bot_info.json`，那是 `install` 装 `botpack` 时放进去的；没有它会报错让你先装，不会静默什么都不做。
+- 改完要开新的一局才生效（bot 的名字与数值在生成时定）。
+- `install --check` 认得这份改写：哈希在 `backup\bots\*\report.json` 里出现过就算"正常"，发布门不会被自己拉平的 db 弄红。
 
 ---
 
@@ -353,6 +384,8 @@ python tools\csgotool.py doctor
 | `tools\bot_profiles.py` | `botprofile.db` 文本档解析（2187 个 profile） |
 | `tools\gamedir.py` | 游戏目录解析：环境变量 → settings.ini → 扫 Steam 库；不写死任何人的路径 |
 | `tools\installer.py` | `install` 的引擎：下载、字节/SHA-256 校验、staging、备份、落地、还原 |
+| `tools\bots_patch.py` | `bots patch` 的引擎：扫 `botprofile.db` 的 profile 头行，改档位 / 删弱档 block / 换名，备份与还原都记账 |
+| `tools\build_exe.py` | 重打包两端 exe + 冒烟自检 + 打印 SHA-256（§9） |
 | `tools\secret_scan.py` | 发布闸门：扫工作区 + 全部 git 对象 + 提交元数据里的标识，命中即非零退出 |
 | `tools\src\` | **我们自己写的插件源码**（`lan_pipe.sp` / `lan_fix.sp`）；游戏 `addons\sourcemod\scripting\` 里那份只是部署结果，两边已核对为同一份哈希 |
 | `release\plugins\` | 我们这两个插件的编译产物（`.smx`），`install` 直接装它们，用户不需要 spcomp |
@@ -361,7 +394,7 @@ python tools\csgotool.py doctor
 | `secrets.example.json` | `secret_scan.py` 要用的"我自己的标识"模板；复制成 `.secrets.json`（已 gitignore） |
 | `csgotool.cmd` | 双击开循环版窗口（纯 ASCII，透传参数） |
 | `lan\join-<IP>.cmd` | 给朋友双击的加入文件（生成的，不入库） |
-| `exe\` `dist\` | PyInstaller 产物（不入库，重打包命令见 §9） |
+| `exe\` `dist\` `build\` | PyInstaller 产物（不入库；一条命令重打包并自检：`python tools\build_exe.py`，见 §9） |
 | `...\csgo\addons\sourcemod\scripting\lan_fix.sp` | 皮肤/手套实写 + bot 内存探针 + 自动发枪补钱 |
 | `...\csgo\addons\sourcemod\scripting\lan_pipe.sp` | 文件管道插件 |
 | `...\csgo\addons\sourcemod\data\lan_pipe.txt` | 命令入口（写一行执行一行，执行完清空） |
@@ -369,7 +402,7 @@ python tools\csgotool.py doctor
 | `...\csgo\addons\sourcemod\data\lan_fix.log` | 插件机器可读输出（皮肤 dump、botmem、autoshow） |
 | `...\csgo\addons\sourcemod\logs\errors_YYYYMMDD.log` | SourceMod 错误日志，按天命名 |
 | `...\csgo\cfg\lan.cfg` / `bots_improved.cfg` | 联机配置 / bot 与回合参数 |
-| `backup\` | 我们自己插件的旧版本（`lan_fix.smx.1.0.5`）与安装过程的还原点（`backup\install\<时间戳>\`）。**Valve 的游戏文件本体（`botprofile.db.orig`、`gameinfo.txt.orig`）、本机视频设置、以及上游没给许可的文件都只留在本机，被 .gitignore 排除**——清单里写明了原因 |
+| `backup\` | 我们自己插件的旧版本（`lan_fix.smx.1.0.5`）、安装过程的还原点（`backup\install\<时间戳>\`）、`bots patch` 的还原点（`backup\bots\<时间戳>\`，里面是改写前的 `botprofile.db` 和当次的 `report.json`）。**Valve 的游戏文件本体（`botprofile.db.orig`、`gameinfo.txt.orig`）、本机视频设置、以及上游没给许可的文件都只留在本机，被 .gitignore 排除**——清单里写明了原因 |
 
 ---
 
@@ -408,21 +441,16 @@ kgns 的皮肤表以 **SteamID 为主键**（`weapons.steamid` / `gloves.steamid
 
 ### 重新打包
 
-改了 `.py` 之后要重出 exe（PyInstaller 6.20.0 已在环境里，一次约 12 秒）：
+改了 `.py` 之后要重出 exe。一条命令，PyInstaller 只是这个脚本的依赖、运行时不需要它：
 
 ```
-python -m PyInstaller --noconfirm --clean --onefile --console ^
-  --hidden-import shell_ui --hidden-import pipe ^
-  --hidden-import bot_profiles --hidden-import skins_catalog ^
-  --hidden-import gamedir --hidden-import installer ^
-  --add-data "configs;configs" --add-data "release;release" --add-data "tools/src;tools/src" ^
-  --distpath exe --name csgo-server-tool tools\csgotool.py
-
-python -m PyInstaller --noconfirm --clean --onefile --console ^
-  --distpath exe --name csgo-room-client tools\csgoclient.py
+python tools\build_exe.py                # 两端都出，出完自己跑一遍冒烟检查
+python tools\build_exe.py --only server  # 只出房主端
 ```
 
-两个坑已经踩过并处理了：**不能用 `--noconsole`**（这类程序要读键盘，去掉控制台后双击既没窗口也读不到输入）；`__file__` 在 onefile 下指向临时解压目录，所以输出目录锚在 `sys.executable` 旁边（否则 `join --write-cmd` 生成的文件会随临时目录一起消失）。`shell_ui` 是在函数里 import 的，必须用 `--hidden-import` 显式告诉打包器。
+脚本干三件事：确认环境里有 PyInstaller（没有就打印 `pip` 命令，不替你装）→ 用固定的 `--onefile --console --add-data` 参数打包到 `exe\` → **拿产出的 exe 真的跑几条命令**（`--help`、`install --list`、`install --audit --into <一个不存在的路径>`，客户端则喂空 stdin 让菜单画一遍就退出），每项打印 `[ok]` / `[!!]`，任何一项没过退出码 1。最后附每个文件的字节数与 SHA-256，那串哈希就是该写进 Release 说明的东西——下载方能据此判断 exe 有没有在这次构建之后被改过。
+
+参数都收在 `tools\build_exe.py` 的 `TARGETS` 里，别在 README 里手抄命令行。**两个坑已经踩过并处理了**：**不能用 `--noconsole`**（这类程序要读键盘，去掉控制台后双击既没窗口也读不到输入）；`__file__` 在 onefile 下指向临时解压目录，所以输出目录锚在 `sys.executable` 旁边（否则 `join --write-cmd` 生成的文件会随临时目录一起消失）。`shell_ui` 是在函数里 import 的，必须用 `--hidden-import` 显式告诉打包器。
 
 ---
 
@@ -458,6 +486,9 @@ skins set <类别> <名或号> [--wear] [--seed] [--trak] [--force]
 skins dump [目标]      读回引擎实体上的真实皮肤
 bots [名字] [--detail] [--no-live]
                        配置值 vs 引擎实测值
+bots patch [--tier X] [--only A,B] [--names] [--dry-run]
+           [--revert [时间戳]] [--backups] [--force]
+                       改写本机 botprofile.db 拉平强度：只动 profile 头行，自动备份，可还原（§5）
 lan [--bots N] [--password X] [--hostname X] [--cheats] [--no-exec]
                        改写 lan.cfg 并立即生效
 cfg gen <名> [--set k=v] [--no-exec]
@@ -465,10 +496,11 @@ cfg gen <名> [--set k=v] [--no-exec]
 verify <cfg文件>       对 server.dll/engine.dll 整词校验参数名
 gamedir [--set 目录] [--scan]
                        查/固定游戏目录：环境变量 CSGO_LEGACY_DIR → settings.ini → 扫 Steam 库
-install [--list] [--check] [--dry-run] [--only a,b] [--skip a,b]
+install [--list] [--check] [--audit] [--dry-run] [--only a,b] [--skip a,b]
         [--no-fetch] [--yes] [--force] [--into 目录] [--accept-upstream-license]
                        按 configs/components.json 下载并安装第三方插件栈：
-                       --check 只核对现场，--dry-run 只出计划，装之前全量校验字节与 SHA-256
+                       --check 只核对现场，--dry-run 只出计划，装之前全量校验字节与 SHA-256；
+                       --audit 是静态自检（缺件/依赖链/bot 数据库覆盖/道具路线），不用开游戏
 uninstall [--revert 时间戳] [--into 目录]
                        按那一次 install 的 report.json 还原：删掉它新增的，恢复它换掉的
 ```
@@ -487,15 +519,21 @@ uninstall [--revert 时间戳] [--into 目录]
 **第三方组件一律保留自己的许可**，本仓库不重新授权它们，也不打包它们——每一项的来源、
 版本、许可和被排除的原因都写在 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 两个要点：`manicogaming/CSGOBetterBots`（bot 强化那批）**没有 LICENSE 文件**，所以只允许
-你自己在 `install` 显式确认后按固定 commit 从上游抓；Valve 的游戏文件本体
-（`botprofile.db`、`gameinfo.txt` 等）不属于我们可以分发的事物，只留本机的 `backup\` 里用于还原。
+你自己在 `install` 显式确认后按固定 commit 从上游抓——`botprofile.db` 就是这么抓下来的上游文件，
+仓库里不放它；Valve 自己那份原始 `botprofile.db`、`gameinfo.txt` 属于我们无权分发的事物，
+只留本机的 `backup\` 里用于还原。`bots patch` 同理：它改写**你自己机器上**的 db，不带任何人的文件。
 
-**发布前跑这两条，别靠眼睛看：**
+**发布前跑这三条，别靠眼睛看：**
 
 ```
 python tools\secret_scan.py --all-objects   # 扫工作区 + 全部 git 对象 + 提交身份
 python tools\csgotool.py install --check     # 核对现场与 components.json（0 = 一致）
+python tools\csgotool.py install --audit     # 静态自检：坏东西退出码 1，建议不影响
+python tools\build_exe.py                    # 两端 exe 能跑，顺带打印要写进 Release 的 SHA-256
 ```
+
+`--check` 认得 `bots patch` 的产物（哈希在 `backup\bots\*\report.json` 里出现过就算正常），
+所以拉平过强度的机器上这条门仍然是绿的——门不该逼你把自定义改回去。
 
 `secret_scan.py` 要查的"我自己的标识"（SteamID64、局域网 IP、主机名、提交邮箱）放在
 **被 gitignore 排除**的 `.secrets.json` 里——把待查的值写进扫描器源码，等于用它要保护的

@@ -49,6 +49,7 @@ import bot_profiles
 import skins_catalog
 import gamedir
 import installer
+import bots_patch
 
 if hasattr(sys.stdout, "buffer") and not getattr(sys.stdout, "_csgotool_utf8", False):
     # this console is cp936 while player and skin names are UTF-8. The guard is
@@ -385,6 +386,8 @@ def _locate(rec, want):
 
 
 def cmd_bots(args):
+    if args.name == "patch":
+        return cmd_bots_patch(args)
     db = bot_profiles.load()
     info = bot_info()
     rows, _ = _players()
@@ -436,6 +439,8 @@ def cmd_bots(args):
                                sorted(tiers.items(), key=lambda kv: -kv[1])))
     print("bot_info.json 共 %d 个名字；本局 %d 个 bot 中 %d 个命中" % (
         len(info), len(bots), len([r for r in bots if r["name"] in info])))
+    if len(tiers) > 1:
+        print("本局档位不统一（强度按名字抽卡）。拉平：python tools\\csgotool.py bots patch --names")
     print("反应时间参考：职业选手简单视觉反应约 0.15-0.25s；实测 0.000 只可能出现在 top 五个人名上（插件写死），不是人类水平")
     if args.detail:
         for r in bots:
@@ -1795,6 +1800,190 @@ def _prompt_yes(text):
         return False
 
 
+def cmd_bots_patch(args):
+    """Flatten the strength lottery and the name gate inside the player's own botprofile.db.
+
+    The engine draws a random profile per bot, so a lobby can straddle ProP and
+    Fair; and bot_stuff.smx only takes a bot over when its name is in
+    bot_info.json. Both are properties of the db on this machine, so this edits
+    that file in place (backup + report under backup\\bots\\) rather than
+    shipping anyone's db for them.
+    """
+    game = GAME
+    if args.backups:
+        rows = bots_patch.backups()
+        if not rows:
+            print("没有备份：本机还没跑过 bots patch")
+            return 0
+        print("%-17s %-7s %6s %6s %6s %10s" % ("时间戳", "档位", "改写", "删块", "换名", "字节"))
+        for stamp, rep in rows:
+            print("%-17s %-7s %6s %6s %6s %10s" % (
+                stamp, rep.get("target"), rep.get("edited"), rep.get("dropped"),
+                rep.get("renamed"), format(rep.get("after_bytes", 0), ",")))
+        print("\n还原：python tools\\csgotool.py bots patch --revert <时间戳>")
+        return 0
+    if args.revert is not None:
+        try:
+            bots_patch.revert(game, args.revert or None, force=args.force)
+        except installer.InstallError as e:
+            print(e)
+            return 1
+        print("下一次开局才生效（bot 的名字与数值在生成时定）")
+        return 0
+    keep = [x.strip() for x in args.only.split(",") if x.strip()] if args.only else None
+    try:
+        bots_patch.patch(game, tier=args.tier, keep=keep, rename=args.names,
+                         dry=args.dry_run)
+    except installer.InstallError as e:
+        print("停下来：%s" % e)
+        return 1
+    if not args.dry_run:
+        print("\n下一次开局才生效；核对：python tools\\csgotool.py install --audit")
+    return 0
+
+
+AUDIT_CHAINS = (
+    # learned from "sm plugins list" error lines, not from docs: a missing link
+    # here means the plugin loads and then refuses to do anything
+    ("bot_stuff.smx", ("plugins/bot_steamids.smx", "extensions/SteamIDConverter.ext.dll",
+                       "data/bot_info.json")),
+    ("botmimic.smx", ("plugins/eitems.smx", "extensions/rip.ext.dll",
+                      "gamedata/botmimic.games.txt")),
+)
+MOTW_PS = ("$ErrorActionPreference='SilentlyContinue';"
+           "Get-ChildItem -LiteralPath '%s' -Recurse -Filter *.dll -Force |"
+           " ForEach-Object { Get-Item -LiteralPath $_.FullName -Stream * } |"
+           " Where-Object { $_.Stream -notmatch 'DATA' } |"
+           " Measure-Object | Select-Object -ExpandProperty Count")
+
+
+def _motw_count(addons_dir):
+    """How many DLLs still carry the web marker; the engine refuses those."""
+    try:
+        r = subprocess.run(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                            "-Command", MOTW_PS % addons_dir],
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=180)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    out = (r.stdout or b"").decode("gbk", "replace").strip()
+    return int(out) if out.isdigit() else None
+
+
+def _w(text):
+    """Display width, so the two columns line up whether the label is Chinese or ASCII."""
+    return sum(2 if ord(c) > 0x2E7F else 1 for c in text)
+
+
+def _pad(text, width):
+    return text + " " * max(0, width - _w(text))
+
+
+def _audit(doc, target):
+    """Static coherence check: does the installed stack actually hang together?
+
+    install --check answers "are the bytes upstream's"; this answers the other
+    question -- what a fresh user sees when nothing works -- and needs neither a
+    running game nor a download cache."""
+    sm = os.path.join(target, "addons", "sourcemod")
+    problems, advice = [], []
+    print("=== 装机自检（游戏不用在跑）===")
+    print("  游戏目录 %s（来源 %s）" % (target, gamedir.source()))
+
+    def _row(tag, label, detail):
+        print("  [%s] %s %s" % (_pad(tag, 5), _pad(label, 13), detail))
+
+    def flag(label, detail, ok):
+        _row("ok" if ok else "!!", label, detail)
+        if not ok:
+            problems.append("%s %s" % (label, detail))
+
+    def tip(label, detail):
+        _row("建议", label, detail)
+        advice.append(label)
+
+    for comp in doc["components"]:
+        for mark in comp.get("marks", []):
+            flag(comp["id"], mark, os.path.isfile(os.path.join(target, *mark.split("/"))))
+
+    want = []
+    for c in doc["components"]:
+        if c["kind"] in ("loose", "local"):
+            key = "path" if c["kind"] == "loose" else "to"
+            want += [e[key] for e in c["files"] if e[key].endswith(".smx")]
+    miss = [w for w in want if not os.path.isfile(os.path.join(target, *w.split("/")))]
+    flag("清单插件", "%d 个 .smx，缺 %s" % (len(want), ", ".join(miss) or "无"), not miss)
+
+    for head, needs in AUDIT_CHAINS:
+        hp = os.path.join(target, "addons", "sourcemod", "plugins", head)
+        if not os.path.isfile(hp):
+            continue          # the missing-file case is already flagged above
+        gap = [n for n in needs if not os.path.isfile(os.path.join(sm, *n.split("/")))]
+        flag("依赖链", "%s -> %s%s" % (head, " ".join(needs),
+                                 "" if not gap else "（缺 %s）" % ", ".join(gap)), not gap)
+
+    for c in installer.plan_cvars(doc, target):
+        fix = c["cvar"]
+        flag("参数", "%s 应为 %s，现在 %s" % (fix["key"], fix["value"],
+                                      c.get("now") or "读不到"), c["action"] == "same")
+    for h in installer.plan_hooks(doc, target):
+        flag("挂钩", "%s %s" % (h["rel"], "已挂钩" if h["action"] == "same" else h["action"]),
+             h["action"] == "same")
+
+    st = bots_patch.status(target)
+    if not st.get("ok"):
+        flag("bot 数据库", st.get("why", "读不到"), False)
+    else:
+        odd = " ".join("%s=%d" % kv for kv in sorted(st["hist"].items(), key=lambda kv: -kv[1]))
+        flag("bot 数据库", "profile %d 个，档位 %s；命中 bot_info %d/%d" % (
+            st["profiles"], odd, st["in_info"], st["profiles"]), True)
+        if not st["bot_info"]:
+            tip("bot 数据库", "没有 data/bot_info.json：先跑 install（botpack 会装它），"
+                             "否则 bot_stuff 一个 bot 都不接管")
+        else:
+            if st["off_strongest"]:
+                tip("强度抽卡", "bots patch 把所有 profile 拉到 %s（先看计划加 --dry-run）；"
+                                "现在每局会混进 %d/%d 个弱档" % (st["strongest"],
+                                      st["off_strongest"], st["profiles"]))
+            if st["in_info"] < st["profiles"]:
+                tip("名字未命中", "bots patch --names 把 %d 个名字换成 bot_info.json 里的空闲职业名" %
+                                  (st["profiles"] - st["in_info"]))
+
+    recs = os.path.join(sm, "data", "botmimic", "default")
+    if os.path.isdir(recs):
+        maps = sorted(n[:-4] for n in os.listdir(os.path.join(target, "maps"))
+                      if n.startswith("de_") and n.endswith(".bsp")) if os.path.isdir(
+            os.path.join(target, "maps")) else []
+        have = set(os.listdir(recs))
+        no_rec = [m for m in maps if m not in have]
+        if no_rec:
+            tip("道具路线", "%d 张本地 de_ 图没有 lineup 数据（上游只做了 %d 张）：%s%s" % (
+                len(no_rec), len(have), ", ".join(no_rec[:8]), " ..." if len(no_rec) > 8 else ""))
+    else:
+        flag("道具路线", "没有 data/botmimic/default（botpack 没装？）", False)
+
+    flag("编译", "spcomp.exe %s（改 .sp 需要它）" % ("在" if os.path.isfile(
+        os.path.join(sm, "scripting", "spcomp.exe")) else "缺"), os.path.isfile(
+        os.path.join(sm, "scripting", "spcomp.exe")))
+    dat = os.path.join(sm, "data")
+    writable = os.access(dat if os.path.isdir(dat) else sm, os.W_OK)
+    flag("管道", "data 目录%s" % ("可写" if writable else "不可写，管道用不了"), writable)
+    n = _motw_count(os.path.join(target, "addons"))
+    if n is None:
+        _row("??", "Web 标记", "读不到（PowerShell 没答），装的时候清过就没事")
+    else:
+        flag("Web 标记", "%d 个 DLL 带着 Web 标记（>0 会被引擎拒绝）" % n, n == 0)
+
+    _row("人要做", "启动选项", "Steam 里给 csgo legacy 加 -insecure；这不能由脚本代做")
+    if problems:
+        print("\n%d 处坏了：%s" % (len(problems), "; ".join(p[:70] for p in problems[:6])))
+        return 1
+    if advice:
+        print("\n没坏，但有 %d 条建议（见上）。" % len(advice))
+    else:
+        print("\n这套栈是自洽的。实时核对：先开一局，再跑 mods 与 doctor。")
+    return 0
+
+
 def cmd_install(args):
     """按 configs/components.json 把第三方插件栈装进游戏目录。"""
     try:
@@ -1840,6 +2029,9 @@ def cmd_install(args):
         print("\n全部一致。")
         return 0
 
+    if args.audit:
+        return _audit(doc, target)
+
     consented = [c for c in comps if c.get("consent")]
     if consented:
         print("\n".join(["", "这几个组件的上游仓库没有 LICENSE 文件，也就是没有给你再分发的许可："]))
@@ -1871,6 +2063,11 @@ def cmd_install(args):
         return 1
 
     tally, total, shown = installer.summarise(items + hooks + cvars, print)
+    sk = installer.skipped(doc, comps)
+    if sk:
+        print("\n清单里明确不装的：")
+        for line in sk:
+            print("  - " + line)
     if args.dry_run:
         print("\ndry-run：只算计划，一个字节都没写。")
         return 0
@@ -1891,10 +2088,10 @@ def cmd_install(args):
     print("\n完成：新增 %d，替换 %d，挂钩 %d，共 %s 字节。" %
           (len(report["added"]), len(report["replaced"]), len(report["hooked"]),
            format(report["bytes"], ",")))
-    print("备份：%s" % broot)
-    print("\n装完还要做的：")
-    for line in doc.get("postinstall", []):
-        print("  - " + line)
+    print("\n备份：%s" % broot)
+    print("\n接下来（照着做完就能玩）：")
+    for i, line in enumerate(doc.get("first_run", []), 1):
+        print("  %d. %s" % (i, line))
     print("\n要退回去：python tools\\csgotool.py uninstall --revert %s" %
           os.path.basename(broot))
     return 0
@@ -1982,7 +2179,22 @@ def main(argv=None):
 
     w = sub.add_parser("watch"); w.add_argument("--every", type=float, default=2.0); w.add_argument("--players", action="store_true"); w.set_defaults(fn=cmd_watch)
 
-    b = sub.add_parser("bots"); b.add_argument("name", nargs="?"); b.add_argument("--no-live", action="store_true", help="只看 botprofile.db，不读内存"); b.add_argument("--detail", action="store_true", help="逐字段列出来源与结构体偏移"); b.set_defaults(fn=cmd_bots)
+    b = sub.add_parser("bots", help="bot 数值对照；bots patch 改写了可在这里看效果")
+    b.add_argument("name", nargs="?", help="只看对局里这一个 bot")
+    b.add_argument("--no-live", action="store_true", help="只看 botprofile.db，不读内存")
+    b.add_argument("--detail", action="store_true", help="逐字段列出来源与结构体偏移")
+    b.add_argument("--tier", default=None,
+                   help="patch: 把所有 profile 的档位改成这个（默认库里最强的一档）")
+    b.add_argument("--only", default=None, help="patch: 只保留这些档位的 block，其余删掉（逗号分隔）")
+    b.add_argument("--names", action="store_true",
+                   help="patch: 把不命中 bot_info.json 的名字换成里面的空闲职业名")
+    b.add_argument("--revert", nargs="?", const="", default=None,
+                   help="patch: 还原某次改写（不给时间戳就还原最近一次）")
+    b.add_argument("--backups", action="store_true", help="patch: 列出改写备份")
+    b.add_argument("--dry-run", action="store_true", help="patch: 只算不写")
+    b.add_argument("--force", action="store_true",
+                   help="patch --revert: 当前文件不是那次的产物也强行还原")
+    b.set_defaults(fn=cmd_bots)
 
     j = sub.add_parser("join"); j.add_argument("--port", type=int, default=DEFAULT_PORT); j.add_argument("--write-cmd", action="store_true", help="在 <仓库>\\lan 生成给朋友双击的 .cmd")
     j.add_argument("--run", action="store_true", help="本机代执行连接（steam://connect，等于双击 .cmd）"); j.add_argument("--ip", default=None, help="--run 时指定地址，默认挑局域网上最合适的那个"); j.set_defaults(fn=cmd_join)
@@ -2049,6 +2261,8 @@ def main(argv=None):
     ins = sub.add_parser("install", help="按 configs/components.json 下载并安装开源插件栈")
     ins.add_argument("--list", action="store_true", help="只列组件与来源")
     ins.add_argument("--check", action="store_true", help="核对现场与清单的差异，什么都不写")
+    ins.add_argument("--audit", action="store_true",
+                     help="静态自检：配对、缺件、bot 数据库覆盖、道具路线（不用开游戏）")
     ins.add_argument("--dry-run", action="store_true", help="算出计划并打印，不写盘")
     ins.add_argument("--only", default=None, help="只装这些组件（逗号分隔）")
     ins.add_argument("--skip", default=None, help="跳过这些组件")

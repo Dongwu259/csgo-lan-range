@@ -33,13 +33,23 @@ Peace-Maker（wcfan.de），源码里也没有许可头。
   `botmimic.smx.upstream`、`gamedata/botstuff.games.txt` 都被 .gitignore 排除，只留本机）。
 - `install` 在你明确确认（`--accept-upstream-license` 或交互 y/N）之后，按固定 commit
   从上游抓到你机器上。抓取动作是你自己做的，许可责任跟着你走。
+- 清单里的 `botpack` 一共 14 个文件，其中两个值得单独说明：
+  - `botprofile.db`（装到游戏根目录）——它是整套 bot 栈的开关：`bot_stuff.smx` 按 bot
+    名字去 `data/bot_info.json` 查表才决定接管，Valve 的默认名字一个都不在表里。
+    替换前原文件进 `backup/install/<时间戳>/`，`uninstall` 能盖回去。
+  - `addons/sourcemod/plugins/botmimic.smx`（上游原样二进制）——它的 `gamedata` 本来就在
+    清单里，插件不装就是半装状态。它同时列在 `preserve` 里：本机如果是自己重编译的补丁版，
+    `install` 不覆盖，`--check` 会明说是"你改过所以保留"。
+- `bots patch` 不改任何人的文件：它读**你自己机器上**的 `botprofile.db` 和 `bot_info.json`，
+  改写前者并留还原点。所以本仓库既不需要、也没有提交任何一份 db。
 - 只要 GPL 那部分的话：`install --skip botpack`。
 
 ## 不入库的游戏文件
 
-`botprofile.db`、`gameinfo.txt`、`listenserver.cfg`、`video.txt` 这些是 Valve 的文件
-（`botprofile.db` 本机那份还是 dDefinder 改写过的版本）。它们属于安装产物，改前的原件
-只在本机 `backup/` 里留着用于还原，不进仓库；`install` 需要改 `core.cfg` /
+`botprofile.db`、`gameinfo.txt`、`listenserver.cfg`、`video.txt` 这些是 Valve 的文件。
+它们属于安装产物：Valve 原版（`backup/botprofile.db.orig`、`gameinfo.txt.orig`）只在本机
+留着用于还原，不进仓库；`install` 装的是**上游仓库那份** `botprofile.db`（按固定 commit 抓取、
+字节与 SHA-256 都钉死），由你自己的机器去取。`install` 需要改 `core.cfg` /
 `listenserver.cfg` / `gamemode_competitive_offline.cfg` 时是**逐行改或追加带注释的块**，
 原版先复制到 `backup/install/<时间戳>/`，`uninstall --revert <时间戳>` 按那份记录还原。
 

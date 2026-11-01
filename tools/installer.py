@@ -504,11 +504,46 @@ def build_plan(doc, comps, game, repo, dl_dir, allow_download=True, say_=None):
     return items, hooks, cvars
 
 
+def patched_hashes(repo):
+    """SHA-256 of every botprofile.db that `bots patch` wrote on this machine.
+
+    check compares against upstream bytes, so a patched db is genuine drift --
+    but it is drift the user asked for, and the release gate has to stay clean
+    while it is there."""
+    base = os.path.join(repo, "backup", "bots")
+    out = set()
+    if not os.path.isdir(base):
+        return out
+    for d in sorted(os.listdir(base)):
+        rp = os.path.join(base, d, "report.json")
+        if not os.path.isfile(rp):
+            continue
+        try:
+            with open(rp, encoding="utf-8") as fh:
+                got = json.load(fh).get("after_sha256")
+        except (ValueError, OSError):
+            continue
+        if got:
+            out.add(got)
+    return out
+
+
+def skipped(doc, comps):
+    """The manifest's skip entries, as lines -- a fresh install silently lacking
+    a file is the worst possible surprise, so both install and check print them."""
+    out = []
+    for c in comps:
+        for s in c.get("skip", []):
+            out.append("%s 不装 %s —— %s" % (c["id"], s["path"], s["because"]))
+    return out
+
+
 def check(doc, game, repo, dl_dir, say_=None, comps=None):
     """Verify what is on disk against the manifest, without writing anything."""
     problems = []
     keep = preserve_set(doc)
     ex = exclude_set(doc)
+    patched = patched_hashes(repo)
     for comp in (comps if comps is not None else doc["components"]):
         if comp["kind"] == "release":
             zp = os.path.join(dl_dir, comp["cache"])
@@ -564,6 +599,8 @@ def check(doc, game, repo, dl_dir, say_=None, comps=None):
                 elif os.path.getsize(dp) != ent["bytes"] or sha256(dp) != ent["sha256"]:
                     if is_preserved(ent[to], keep):
                         say(say_, "  保留 %s（你改过，清单里那份不会覆盖它）" % ent[to])
+                    elif sha256(dp) in patched:
+                        say(say_, "  已改写 %s（bots patch 的产物，正常）" % ent[to])
                     else:
                         bad.append(ent[to] + " (内容不同)")
             say(say_, "%-9s %d 个文件：%s" % (comp["id"], len(ents),
@@ -587,4 +624,6 @@ def check(doc, game, repo, dl_dir, say_=None, comps=None):
                                           "" if "why" not in fix else "   （%s）" % fix["why"]))
             if c["action"] != "same":
                 problems.append("cvar %s %s" % (fix["key"], c["action"]))
+    for line in skipped(doc, selected):
+        say(say_, "  不装：%s" % line)
     return problems

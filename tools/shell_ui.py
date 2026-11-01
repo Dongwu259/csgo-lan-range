@@ -534,6 +534,10 @@ def screen_setup(T):
         print("  6  只装 GPL 那部分，跳过没有 LICENSE 的 bot 栈")
         print("  7  撤销最近一次安装")
         print("  8  mod DLL 进进程了吗（缺 -insecure 就在这露馅）")
+        print("  9  静态自检：这套栈自洽吗、bot 数据库够不够强（不用开游戏）")
+        print("  10 bot 强度拉平（只看计划，不写）")
+        print("  11 bot 强度拉平 + 换名（写本机 botprofile.db，自动备份）")
+        print("  12 查看/还原 botprofile.db 的改写备份")
         print("  回车  返回菜单")
         try:
             raw = input("  选哪项: ").strip()
@@ -543,7 +547,9 @@ def screen_setup(T):
             return
         cmd = {"1": "gamedir", "2": "install --list", "3": "install --check",
                "4": "install --dry-run", "5": "install",
-               "6": "install --skip botpack", "7": "uninstall", "8": "mods"}.get(raw)
+               "6": "install --skip botpack", "7": "uninstall", "8": "mods",
+               "9": "install --audit", "10": "bots patch --dry-run",
+               "11": "bots patch --names", "12": "bots patch --backups"}.get(raw)
         if cmd:
             run(T, cmd)
         pause()
@@ -617,7 +623,7 @@ MAIN = [
     ("7", "联机与加入", "地址、.cmd、密码、房名"),
     ("8", "专家模式", "任意参数与命令、cfg 生成与校验"),
     ("9", "体检 doctor", "管道/插件版本/错误日志"),
-    ("10", "装机与自检", "install / 核对 / 撤销 / 游戏目录"),
+    ("10", "装机与自检", "install / 核对 / 静态自检 / bots patch / 撤销"),
 ]
 
 
