@@ -1,4 +1,6 @@
-# CS:GO Legacy 联机工具箱 · 使用教程
+# lan-range · CS:GO Legacy 本地与局域网工具箱
+
+一句话：把一台机器上的 CS:GO Legacy 变成能自己装插件、能拉平 bot 强度、能带朋友开房的本地服务器。仓库名 `lan-range`（局域网靶场）取的是"自己人、离线、练枪"这层意思；名字里不带游戏商标，兼容对象写在下一行。
 
 对象：`tools\csgotool.py`（配套 `pipe.py` / `bot_profiles.py` / `skins_catalog.py`，插件 `lan_fix.smx` 1.2.3 + `lan_pipe.smx` 1.2.0）
 环境：CS:GO Legacy（Steam appid 4465480，build 1.38.8.1 / 13881，32 位），本机 listen server。
