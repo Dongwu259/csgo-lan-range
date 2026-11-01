@@ -23,6 +23,9 @@ settings.ini
 # 发布前扫描器用的"我自己的标识"清单；模板是 secrets.example.json
 .secrets.json
 
+# GitHub token 只放这里（建 Release / 改仓库属性时用），永远不入库、不回显
+.github_token
+
 # install 的还原点：里面是上游二进制和被替换下来的 Valve 文件，只对本机有意义
 backup/install/
 # bots patch 的还原点，同上（改的是本机 botprofile.db）

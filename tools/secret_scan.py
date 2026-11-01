@@ -32,6 +32,8 @@ PATTERN = {
     "mac_addr": re.compile(r"\b(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\b"),
     "aws_key": re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     "gh_token": re.compile(r"\bgh[pousr]_[0-9A-Za-z]{20,}\b"),
+    # fine-grained PATs do not use the ghp_ shape at all
+    "gh_pat": re.compile(r"\bgithub_pat_[0-9A-Za-z_]{20,}\b"),
     "private_key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     "discord_hook": re.compile(r"discordapp\.com/api/webhooks/\d+/[0-9A-Za-z_\-]+"),
     "bearer": re.compile(r"(?i)\b(?:bearer|authorization)\s*[:=]\s*[0-9A-Za-z._\-]{16,}"),
