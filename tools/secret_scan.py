@@ -78,8 +78,12 @@ def is_text(name, blob):
 
 def git_base():
     # the repo may be owned by a different account than the shell running this,
-    # so name *this* directory as trusted instead of touching global config
-    return ["git", "-c", "safe.directory=" + ROOT.replace(os.sep, "/")]
+    # so name *this* directory as trusted instead of touching global config.
+    # quotepath=false is not cosmetic: with the default C-quoting, a Chinese file
+    # name comes back as "docs/\346\225\205..." and every one of them is then
+    # reported as "tracked but not on disk".
+    return ["git", "-c", "safe.directory=" + ROOT.replace(os.sep, "/"),
+            "-c", "core.quotepath=false"]
 
 
 def git(*args):
